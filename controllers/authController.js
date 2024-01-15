@@ -103,7 +103,8 @@ const userRegister = async (req, res) => {
       user: others._id,
     }).save();
 
-    const link = `${process.env.FRONTEND}/${others._id}/${token.token}`;
+    const link = `${process.env.FRONTEND}/verification/?userId=${others._id}&token=${token.token}`;
+
     verifyEmail(newUser.email, link);
 
     return res.json({
@@ -124,7 +125,8 @@ const userRegister = async (req, res) => {
 // email verification
 const verifyUserEmail = async (req, res) => {
   try {
-    const { userId, token } = req.params;
+    const { userId, token } = req.body;
+    console.log(req.body);
     const user = await User.findById({ _id: userId });
     if (!user) {
       return res.json({
@@ -235,7 +237,7 @@ const resendEmail = async (req, res) => {
       });
     }
 
-    const link = `${process.env.FRONTEND}/${checkToken.user}/${checkToken.token}`;
+    const link = `${process.env.FRONTEND}/verification/?userId=${checkToken.user}&token=${checkToken.token}`;
 
     verifyEmail(user.email, link);
     return res.json({
@@ -317,7 +319,7 @@ const userLogin = async (req, res) => {
           user: user._id,
         }).save();
 
-        const link = `${process.env.FRONTEND}/${user._id}/${token.token}`;
+        const link = `${process.env.FRONTEND}/verification/?userId=${user._id}&token=${token.token}`;
         verifyEmail(user.email, link);
         return res.json({
           message: 'Please verify your email.',
@@ -325,8 +327,9 @@ const userLogin = async (req, res) => {
         });
       }
 
-      const link = `${process.env.FRONTEND}/${tokenExist.user}/${tokenExist.token}`;
-      verifyEmail(res, user.email, link);
+      const link = `${process.env.FRONTEND}/verification/?userId=${tokenExist.user}&token=${tokenExist.token}`;
+      verifyEmail(user.email, link);
+
       return res.json({
         message: `${user.firstName} please check your email and verify you email address`,
         success: false,
@@ -380,63 +383,183 @@ const logout = (req, res) => {
   }
 };
 
+// credit user wallet
 const payment = async (req, res) => {
   try {
-    //  get the id of the business that want to credit its wallet and use it as ref_command
-    // const user = req.user._id;
-    const { amount, currency } = req.body;
+    const user = req.user;
 
-    const unique = uuidv4();
-    console.log(amount);
-    console.log(unique);
+    // const { businessId } = req.params;
 
-    const requestData = {
-      item_price: amount,
-      currency,
-      ref_command: unique,
+    // const business = await Business.findOne({ _id: businessId });
+
+    // if (!business) {
+    //   return res.json({
+    //     message: 'Business does not exist',
+    //     status: 404,
+    //     success: false,
+    //   });
+    // }
+
+    // const isMember = business.members.find((member) =>
+    //   member.member.equals(user._id)
+    // );
+    // if (!isMember) {
+    //   return res.json({
+    //     message: 'User is not a member of the business',
+    //     status: 404,
+    //     success: false,
+    //   });
+    // }
+
+    const itemInfo = 'Wallet crediting';
+
+    const userInfo = {
+      userId: user._id,
+      // owner: business.owner,
+      // creditor: isMember.member,
+      // creditorRole: isMember.role,
+      email: user.email,
     };
 
+    const commandDetails = `${itemInfo} for user ${user.firstName}`;
+    console.log(commandDetails);
+    // this means that each wallet crediting requires unique ref_command
+    const uniqueId = uuidv4();
+
+    const { number } = req.body;
+    const amount = parseInt(number);
+
+    // console.log('uniqueId:', uniqueId);
+    // console.log(userInfo);
+    // console.log(amount);
+    // console.log(typeof amount);
+    // return;
+
+    const currency = 'XOF';
+
+    // const { amount } = req.body;
+
     let paymentRequestUrl = 'https://paytech.sn/api/payment/request-payment';
+    // http client
+    let params = {
+      item_name: itemInfo,
+      item_price: amount,
+      currency: currency,
+      ref_command: uniqueId,
+      command_name: commandDetails,
+
+      env: 'test',
+      ipn_url: 'https://webhook.site/bd627225-628c-4e8d-abe8-dabfac3da97f',
+      ipn_url:
+        'https://auth-backend-d9n5.onrender.com/api/payment-notification',
+      success_url: 'https://domain.com/success',
+      cancel_url: 'https://domain.com/cancel',
+
+      custom_field: JSON.stringify({
+        custom_fiel1: userInfo,
+        // custom_fiel2: 'value_2',
+      }),
+
+      // ipn_url: 'https://domain.com/ipn',
+    };
+    console.log('refCommand:', params.ref_command);
 
     let headers = {
       Accept: 'application/json',
       'Content-Type': 'application/json',
-      API_KEY:
-        'b52efdaeee065f913edce7636edeb256a2e55b969a8dc25d9f04c6456b0451a0',
-      API_SECRET:
-        '4b1f3e3b5bf6245421a5e5a91b1f1c813c8870cbf59c33c4bf9d378a292e9414',
+      API_KEY: process.env.API_KEY,
+      API_SECRET: process.env.API_SECRET,
     };
+
+    // return res.json({ businessInfo: params.custom_field });
 
     fetch(paymentRequestUrl, {
       method: 'POST',
-      body: JSON.stringify(requestData),
+      body: JSON.stringify(params),
       headers: headers,
     })
-      .then(async (response) => {
-        console.log('done 1');
-        console.log(await response.json());
+      .then(function (response) {
         return response.json();
       })
-      .then((jsonResponse) => {
-        console.log('done 2');
+      .then(function (jsonResponse) {
         console.log(jsonResponse);
-        return res.json(jsonResponse);
+        // send the response for making payment to the frontend so that frontend can redirect user to the page
+        // we can also handle the redirection from the backend
+        // we can also save the payment token coming from the payment gateway and make it a default of initiated. Then we change it to success when it is successful and failure when it fails. Then we query the business collection based on whether the payment is initiated, successful or failed
+        const { token, ...others } = jsonResponse;
+        return res.json({
+          others,
+        });
       })
       .catch((error) => {
-        console.log('done 3');
         console.log(error.message);
         return res.json(error.message);
       });
+  } catch (error) {
+    return res.json({
+      message: 'Something happened',
+      status: 500,
+      success: false,
+    });
+  }
+};
 
-    // axios.post(paymentRequestUrl, requestData, {
-    //   headers: {
-    //     'Authorization':
-    //     'Content-Type': 'application/json'
-    //   }
-    // }).then((response)=> {
-    //   console.log(response.data)
-    // })
-    // return res.json(req.body);
+/*
+item_name: product name(wallet crediting)
+item_price: amount
+ref_command: uniqueID generated for each transaction using UUID 
+command_name: i concatenate the item_name with the firstName of the user making the request
+currency: as selected by the user
+approx: Environment['test', 'prod']
+custom_field: Additional data sent to paytech server when requesting for token(we may decide to add the type of user sending the request. it can be business user or the business itself, we may also send the the id of the user or business making the request)
+token: payment token
+api_key_sha256: company API key hashed with the sha256 algorithm
+api_secret_sha256: company secret key hashed with the sha256 algorithm
+*/
+
+// paytech IPN
+const paymentNotification = async (req, res) => {
+  try {
+    let {
+      type_event,
+      ref_command,
+      item_name,
+      item_price,
+      currency,
+      command_name,
+      env,
+      token,
+      api_key_sha256,
+      api_secret_sha256,
+    } = req.body;
+
+    let custom_field = JSON.parse(req.body.custom_field);
+
+    let my_api_key = process.env.API_KEY;
+    let my_api_secret = process.env.API_SECRET;
+    if (
+      SHA256Encrypt(my_api_secret) === api_secret_sha256 &&
+      SHA256Encrypt(my_api_key) === api_key_sha256
+    ) {
+      // supposed we add details like whether the wallet to be credited belong to a business user or business, then we can check and we pick the user from the collection it belongs to and update the wallet and we can also save the details of the data coming from the payment gateway their.
+      // supposed we save the ref_command inside the user collection when the request was made, then we remove it and push it into wallet crediting successful. Or we might just give it 3 conditions: activate, successful and failure. then we update it accordingly when the notification comes to our website
+    } else {
+      return;
+    }
+
+    // {
+    //   let type_event = req.body.type_event;
+    //   let custom_field = JSON.parse(req.body.custom_field);
+    //   let ref_command = req.body.ref_command;
+    //   let item_name = req.body.item_name;
+    //   let item_price = req.body.item_price;
+    //   let currency = req.body.currency;
+    //   let command_name = req.body.command_name;
+    //   let env = req.body.env;
+    //   let token = req.body.token;
+    //   let api_key_sha256 = req.body.api_key_sha256;
+    //   let api_secret_sha256 = req.body.api_secret_sha256;
+    // }
   } catch (error) {
     return res.json({
       message: 'Something happened',
@@ -453,4 +576,5 @@ export {
   userRegister,
   resendEmail,
   verifyUserEmail,
+  paymentNotification,
 };
