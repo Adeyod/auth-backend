@@ -28,6 +28,10 @@ app.use([
   express.urlencoded({ extended: true }),
 ]);
 
+app.get('/', (req, res) => {
+  res.send('Welcome to the home page');
+});
+
 // routes
 app.use('/api', authRoute);
 

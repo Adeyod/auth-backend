@@ -27,7 +27,6 @@ const generateToken = async (res, userId, userEmail) => {
 const verifyToken = async (req, res, next) => {
   const token = req.cookies.access_token;
   try {
-    console.log(token);
 
     if (!token) {
       return res.json({

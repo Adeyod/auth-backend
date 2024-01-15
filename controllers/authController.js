@@ -4,6 +4,8 @@ import crypto from 'crypto';
 import Token from '../models/tokenModel.js';
 import { verifyEmail } from '../utils/nodemailer.js';
 import { generateToken } from '../utils/jwtVerification.js';
+import axios from 'axios';
+import { v4 as uuidv4 } from 'uuid';
 
 // user registration
 const userRegister = async (req, res) => {
@@ -132,7 +134,6 @@ const verifyUserEmail = async (req, res) => {
       });
     }
 
-    console.log(token);
     const checkToken = await Token.findOne({
       token,
     });
@@ -178,7 +179,7 @@ const resendEmail = async (req, res) => {
     const { email } = req.body;
     if (!email) {
       return res.json({
-        message: 'Email does not exist',
+        message: 'Email can not be empty',
         status: 404,
         success: false,
       });
@@ -379,4 +380,77 @@ const logout = (req, res) => {
   }
 };
 
-export { userLogin, logout, userRegister, resendEmail, verifyUserEmail };
+const payment = async (req, res) => {
+  try {
+    //  get the id of the business that want to credit its wallet and use it as ref_command
+    // const user = req.user._id;
+    const { amount, currency } = req.body;
+
+    const unique = uuidv4();
+    console.log(amount);
+    console.log(unique);
+
+    const requestData = {
+      item_price: amount,
+      currency,
+      ref_command: unique,
+    };
+
+    let paymentRequestUrl = 'https://paytech.sn/api/payment/request-payment';
+
+    let headers = {
+      Accept: 'application/json',
+      'Content-Type': 'application/json',
+      API_KEY:
+        'b52efdaeee065f913edce7636edeb256a2e55b969a8dc25d9f04c6456b0451a0',
+      API_SECRET:
+        '4b1f3e3b5bf6245421a5e5a91b1f1c813c8870cbf59c33c4bf9d378a292e9414',
+    };
+
+    fetch(paymentRequestUrl, {
+      method: 'POST',
+      body: JSON.stringify(requestData),
+      headers: headers,
+    })
+      .then(async (response) => {
+        console.log('done 1');
+        console.log(await response.json());
+        return response.json();
+      })
+      .then((jsonResponse) => {
+        console.log('done 2');
+        console.log(jsonResponse);
+        return res.json(jsonResponse);
+      })
+      .catch((error) => {
+        console.log('done 3');
+        console.log(error.message);
+        return res.json(error.message);
+      });
+
+    // axios.post(paymentRequestUrl, requestData, {
+    //   headers: {
+    //     'Authorization':
+    //     'Content-Type': 'application/json'
+    //   }
+    // }).then((response)=> {
+    //   console.log(response.data)
+    // })
+    // return res.json(req.body);
+  } catch (error) {
+    return res.json({
+      message: 'Something happened',
+      status: 500,
+      success: false,
+    });
+  }
+};
+
+export {
+  payment,
+  userLogin,
+  logout,
+  userRegister,
+  resendEmail,
+  verifyUserEmail,
+};
