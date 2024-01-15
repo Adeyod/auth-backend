@@ -18,7 +18,10 @@ app.use(
 
 app.use((req, res, next) => {
   res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', 'http://localhost:5173'); // Replace with your frontend origin
+  res.setHeader(
+    'Access-Control-Allow-Origin',
+    'https://my-auth-frontend.netlify.app'
+  ); // Replace with your frontend origin
   // Other headers...
   next();
 });
