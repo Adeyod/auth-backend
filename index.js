@@ -10,7 +10,7 @@ const app = express();
 app.use(
   cors({
     // origin: 'http://localhost:5173',
-    origin: 'https://my-auth-frontend.netlify.app/',
+    origin: 'https://my-auth-frontend.netlify.app',
     credentials: true,
     allowedHeaders: ['Content-Type', 'Authorization'],
   })
