@@ -6,13 +6,13 @@ const verifyEmail = async (email, link) => {
     const transporter = nodemailer.createTransport({
       host: process.env.HOST,
       port: process.env.EMAIL_PORT,
-      secure: process.env.SECURE,
-      service: process.env.SERVICE,
+      // secure: process.env.SECURE,
+      // service: process.env.SERVICE,
       auth: {
         user: process.env.USER,
         pass: process.env.PASS,
       },
-      tls: { rejectUnauthorized: false },
+      // tls: { rejectUnauthorized: false },
     });
 
     // send mail
